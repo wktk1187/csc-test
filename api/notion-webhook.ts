@@ -1,0 +1,88 @@
+import { VercelRequest, VercelResponse } from '@vercel/node';
+import { Client as Notion } from '@notionhq/client';
+import fetch from 'node-fetch';
+
+// Notion
+const notion = new Notion({ auth: process.env.NOTION_TOKEN });
+
+// Dify
+const DIFY_API_URL = process.env.DIFY_API_URL ?? 'https://api.dify.ai/v1';
+const DIFY_API_KEY = process.env.DIFY_API_KEY as string;
+const DIFY_DATASET_ID = process.env.DIFY_DATASET_ID as string;
+
+export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method !== 'POST') return res.status(405).end();
+
+  // Notion が送る JSON ボディは Vercel で自動パース済み
+  const body = req.body as any;
+
+  // 初回 Verification
+  if (body.verification_token) {
+    return res.status(200).json({ verification_token: body.verification_token });
+  }
+  // beta challenge
+  if (body.challenge) {
+    return res.status(200).json({ challenge: body.challenge });
+  }
+
+  const events: any[] = Array.isArray(body)
+    ? body
+    : Array.isArray(body.events)
+    ? body.events
+    : [body];
+
+  const VALID_TYPES = [
+    'page.created',
+    'page.updated',
+    'page.property_value_changed',
+    'page.properties_updated',
+    'page.content_updated',
+  ];
+
+  try {
+    for (const ev of events) {
+      if (ev.object !== 'page') continue;
+      if (!VALID_TYPES.includes(ev.type)) continue;
+
+      const pageId: string | undefined = ev.id || ev.page_id || ev.entity?.id;
+      if (!pageId) continue;
+
+      const page = await notion.pages.retrieve({ page_id: pageId });
+      const props: any = (page as any).properties;
+
+      // Approval check
+      const approved = Object.values(props).some((prop: any) => prop.type === 'checkbox' && prop.checkbox);
+      if (!approved) continue;
+
+      const question = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
+      const answer = props['回答']?.rich_text?.[0]?.plain_text ?? '';
+
+      await pushToDify(question, answer);
+    }
+
+    res.json({ received: true });
+  } catch (err) {
+    console.error('Webhook handler error:', err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+}
+
+async function pushToDify(question: string, answer: string) {
+  if (!DIFY_API_KEY || !DIFY_DATASET_ID) return;
+
+  await fetch(`${DIFY_API_URL}/datasets/${DIFY_DATASET_ID}/document/create_by_text`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${DIFY_API_KEY}`,
+    },
+    body: JSON.stringify({
+      name: question.slice(0, 50),
+      text: `${question}\n${answer}`,
+      indexing_technique: 'high_quality',
+      process_rule: { mode: 'automatic' },
+    }),
+  }).then((r) => {
+    if (!r.ok) console.error('Dify API error', r.status);
+  });
+} 
