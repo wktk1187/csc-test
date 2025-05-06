@@ -22,25 +22,45 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ verification_token: body.verification_token });
   }
 
+  // Notion 公式 Webhook の challenge 方式 (beta) にも対応
+  if (body.challenge) {
+    console.log('Received Notion challenge:', body.challenge);
+    return res.status(200).json({ challenge: body.challenge });
+  }
+
   const events = body.events as any[];
   if (!Array.isArray(events)) return res.status(400).end();
 
+  // 対象とするイベントタイプ（ノイズ削減用）
+  const VALID_TYPES = ['page.properties_updated', 'page.created'];
+
   try {
     for (const ev of events) {
+      // page オブジェクト以外は無視
       if (ev.object !== 'page') continue;
-      const changedArr: any[] = Array.isArray(ev.changed_properties)
-        ? ev.changed_properties
-        : Object.values(ev.changed_properties ?? {});
+      if (!VALID_TYPES.includes(ev.type)) continue;
 
-      const approved = changedArr.find((p: any) =>
-        (p.property_name === '承認' || p.property_id === '承認') &&
-        (p.after?.checkbox === true || p.after === true)
-      );
-      if (!approved) continue;
+      const pageId: string | undefined = ev.id || ev.page_id || ev.entity_id;
+      if (!pageId) continue;
 
-      const pageId = ev.id;
+      // 最新のページ情報を取得し、承認チェックボックスの実際の値で判定
       const page = await notion.pages.retrieve({ page_id: pageId });
       const props: any = (page as any).properties;
+
+      const APPROVAL_NAME = '承認';
+      const APPROVAL_ID = process.env.APPROVAL_PROPERTY_ID; // 任意
+
+      const approved = Object.entries(props).some(([name, prop]: any) => {
+        if (prop.type !== 'checkbox') return false;
+        if (name === APPROVAL_NAME) return prop.checkbox === true;
+        if (APPROVAL_ID && prop.id === APPROVAL_ID) return prop.checkbox === true;
+        return false;
+      });
+
+      if (!approved) continue;
+
+      console.log(`Approved page detected: ${pageId}`);
+
       const question = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
       const answer = props['回答']?.rich_text?.[0]?.plain_text ?? '';
 
@@ -49,7 +69,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     res.json({ received: true });
   } catch (err) {
-    console.error(err);
+    console.error('Webhook handler error:', err);
     res.status(500).json({ error: 'Internal server error' });
   }
 }
