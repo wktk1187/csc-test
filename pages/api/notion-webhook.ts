@@ -31,8 +31,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json({ challenge: body.challenge });
   }
 
-  const events = body.events as any[];
-  if (!Array.isArray(events)) return res.status(400).end();
+  // Notion の Webhook は 1 POST = 1 event（オブジェクト）だが
+  // 今後の拡張やテストリクエストでは配列になる場合もあるため両対応にしておく
+  const events: any[] = Array.isArray(body)
+    ? body
+    : Array.isArray(body.events)
+    ? body.events
+    : [body];
 
   // 対象とするイベントタイプ（ノイズ削減用）
   const VALID_TYPES = [
