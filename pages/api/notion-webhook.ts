@@ -16,6 +16,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   // Notion が送る JSON ボディは Next.js 側で自動パース済み
   const body = req.body as any;
 
+  // デバッグ用: 受信ボディをそのまま出力（機密情報が含まれる場合は削除を検討）
+  console.log('Notion webhook body:', JSON.stringify(body));
+
   // 初回 Verification リクエストの場合、そのまま token を返すだけ
   if (body.verification_token) {
     console.log('Received Notion verification_token:', body.verification_token);
