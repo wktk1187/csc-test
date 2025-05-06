@@ -2,7 +2,6 @@
   "name": "line-notion-uploader",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "scripts": {
     "upload": "ts-node scripts/upload.ts"
   },
