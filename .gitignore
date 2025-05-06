@@ -1,0 +1,12 @@
+# Node / Next.js
+node_modules/
+.next/
+
+# Env secrets
+.env
+
+# Logs
+npm-debug.log*
+
+# OS
+.DS_Store 
