@@ -19,8 +19,16 @@ function verifySignature(rawBody: Buffer, signature: string | undefined) {
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const rawBody = Buffer.isBuffer(req.body) ? (req.body as Buffer) : Buffer.from(req.body || '');
-  // When bodyParser is true by default, req.rawBody is not available. For safety, re-encode.
+  // Build rawBody safely
+  let rawBody: Buffer;
+  if (Buffer.isBuffer(req.body)) {
+    rawBody = req.body as Buffer;
+  } else if (typeof req.body === 'string') {
+    rawBody = Buffer.from(req.body);
+  } else {
+    rawBody = Buffer.from(JSON.stringify(req.body || {}));
+  }
+
   const signature = req.headers['x-notion-signature'] as string | undefined;
 
   // Verification request
