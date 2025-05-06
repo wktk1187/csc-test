@@ -18,6 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // 初回 Verification
   if (body.verification_token) {
+    // デバッグ用: Verification Token をログに出力（本番では削除推奨）
+    console.log('Notion verification_token:', body.verification_token);
     return res.status(200).json({ verification_token: body.verification_token });
   }
   // beta challenge
