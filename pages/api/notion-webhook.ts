@@ -43,6 +43,15 @@ async function handler(req: NextApiRequest, res: NextApiResponse) {
   }
 
   const body = JSON.parse(rawBody.toString());
+
+  // ----- Webhook verification (initial) -----
+  if (body.verification_token) {
+    // ① コンソールに表示
+    console.log('Received Notion verification_token:', body.verification_token);
+    // ② レスポンスにそのまま返却（Notion UI のコピペ用）
+    return res.status(200).json({ verification_token: body.verification_token });
+  }
+
   const events = body.events as any[];
 
   for (const ev of events) {
