@@ -28,9 +28,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     for (const ev of events) {
       if (ev.object !== 'page') continue;
-      const changed = ev.changed_properties as any[];
-      const approved = changed?.find((p: any) => p.property_name === '承認' || p.property_id === '承認');
-      if (!approved || approved.after !== true) continue;
+      const changedArr: any[] = Array.isArray(ev.changed_properties)
+        ? ev.changed_properties
+        : Object.values(ev.changed_properties ?? {});
+
+      const approved = changedArr.find((p: any) =>
+        (p.property_name === '承認' || p.property_id === '承認') &&
+        (p.after?.checkbox === true || p.after === true)
+      );
+      if (!approved) continue;
 
       const pageId = ev.id;
       const page = await notion.pages.retrieve({ page_id: pageId });
@@ -63,5 +69,9 @@ async function pushToDify(question: string, answer: string) {
       indexing_technique: 'high_quality',
       process_rule: { mode: 'automatic' },
     }),
-  });
+  }).then(res => {
+    if (!res.ok) {
+      console.error('Dify API error', res.status, res.statusText);
+    }
+  }).catch(err => console.error('Dify fetch error', err));
 } 
