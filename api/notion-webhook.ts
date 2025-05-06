@@ -43,6 +43,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     for (const ev of events) {
+      console.log('Received event:', ev.type, ev.id ?? ev.page_id ?? ev.entity?.id);
       if (ev.object !== 'page') continue;
       if (!VALID_TYPES.includes(ev.type)) continue;
 
