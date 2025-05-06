@@ -38,8 +38,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   const VALID_TYPES = [
     'page.created',
     'page.updated',
-    'page.property_value_changed', // Notion beta
-    'page.properties_updated',    // 旧表記（念のため残す）
+    'page.property_value_changed', // Notion beta (individualプロパティ)
+    'page.properties_updated',    // 旧表記
+    'page.content_updated',       // 🔥 UI 上は「Page content updated」
   ];
 
   try {
