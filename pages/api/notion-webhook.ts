@@ -1,4 +1,4 @@
-import { NextApiRequest, NextApiResponse } from 'next';
+import { VercelRequest, VercelResponse } from '@vercel/node';
 import { Client as Notion } from '@notionhq/client';
 import fetch from 'node-fetch';
 
@@ -10,7 +10,7 @@ const DIFY_API_URL = process.env.DIFY_API_URL ?? 'https://api.dify.ai/v1';
 const DIFY_API_KEY = process.env.DIFY_API_KEY as string;
 const DIFY_DATASET_ID = process.env.DIFY_DATASET_ID as string;
 
-export default async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
   // Notion が送る JSON ボディは Next.js 側で自動パース済み
