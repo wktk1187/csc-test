@@ -12,8 +12,9 @@
     "openai": "^4.26.0"
   },
   "devDependencies": {
+    "@types/node": "^20.11.19",
+    "@vercel/node": "^5.1.15",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.3",
-    "@types/node": "^20.11.19"
+    "typescript": "^5.4.3"
   }
-} 
+}
