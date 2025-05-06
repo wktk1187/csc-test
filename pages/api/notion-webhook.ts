@@ -1,93 +1,67 @@
 import { NextApiRequest, NextApiResponse } from 'next';
 import { Client as Notion } from '@notionhq/client';
-import crypto from 'crypto';
 import fetch from 'node-fetch';
 
-export const config = {
-  api: {
-    bodyParser: false, // Raw body for signature verification
-  },
-};
-
-const notionSigningSecret = process.env.NOTION_SIGNING_SECRET as string;
+// Notion
 const notion = new Notion({ auth: process.env.NOTION_TOKEN });
+
+// Dify
 const DIFY_API_URL = process.env.DIFY_API_URL ?? 'https://api.dify.ai/v1';
 const DIFY_API_KEY = process.env.DIFY_API_KEY as string;
-const DIFY_KB_ID = process.env.DIFY_KB_ID as string;
-const notionVerificationToken = process.env.NOTION_VERIFICATION_TOKEN as string;
+const DIFY_DATASET_ID = process.env.DIFY_DATASET_ID as string;
 
-// helper to read raw body
-async function getRawBody(req: NextApiRequest): Promise<Buffer> {
-  return new Promise((resolve, reject) => {
-    const chunks: Buffer[] = [];
-    req.on('data', (chunk) => chunks.push(chunk));
-    req.on('end', () => resolve(Buffer.concat(chunks)));
-    req.on('error', reject);
-  });
-}
-
-function verifySignature(rawBody: Buffer, signature: string | undefined) {
-  if (!signature) return false;
-  const expected = 'sha256=' + crypto.createHmac('sha256', notionVerificationToken).update(rawBody).digest('hex');
-  return crypto.timingSafeEqual(Buffer.from(signature), Buffer.from(expected));
-}
-
-async function handler(req: NextApiRequest, res: NextApiResponse) {
+export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   if (req.method !== 'POST') return res.status(405).end();
 
-  const rawBody = await getRawBody(req);
-  const signature = req.headers['x-notion-signature'] as string | undefined;
+  // Notion が送る JSON ボディは Next.js 側で自動パース済み
+  const body = req.body as any;
 
-  if (!verifySignature(rawBody, signature)) {
-    return res.status(401).json({ error: 'Invalid signature' });
-  }
-
-  const body = JSON.parse(rawBody.toString());
-
-  // ----- Webhook verification (initial) -----
+  // 初回 Verification リクエストの場合、そのまま token を返すだけ
   if (body.verification_token) {
-    // ① コンソールに表示
     console.log('Received Notion verification_token:', body.verification_token);
-    // ② レスポンスにそのまま返却（Notion UI のコピペ用）
     return res.status(200).json({ verification_token: body.verification_token });
   }
 
   const events = body.events as any[];
+  if (!Array.isArray(events)) return res.status(400).end();
 
-  for (const ev of events) {
-    if (ev.object !== 'page') continue;
-    const changed = ev.changed_properties as any[];
-    const approvedChange = changed.find((p) => p.property_id === '承認' || p.property_name === '承認');
-    if (!approvedChange) continue;
-    if (approvedChange.after === true) {
-      // Fetch page to get properties
+  try {
+    for (const ev of events) {
+      if (ev.object !== 'page') continue;
+      const changed = ev.changed_properties as any[];
+      const approved = changed?.find((p: any) => p.property_name === '承認' || p.property_id === '承認');
+      if (!approved || approved.after !== true) continue;
+
       const pageId = ev.id;
       const page = await notion.pages.retrieve({ page_id: pageId });
-      // Extract title and answer texts
       const props: any = (page as any).properties;
-      const title = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
+      const question = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
       const answer = props['回答']?.rich_text?.[0]?.plain_text ?? '';
 
-      await pushToDify(title, answer);
+      await pushToDify(question, answer);
     }
-  }
 
-  res.json({ received: true });
+    res.json({ received: true });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Internal server error' });
+  }
 }
 
 async function pushToDify(question: string, answer: string) {
-  if (!DIFY_API_KEY || !DIFY_KB_ID) return;
-  await fetch(`${DIFY_API_URL}/knowledge_base_documents`, {
+  if (!DIFY_API_KEY || !DIFY_DATASET_ID) return;
+
+  await fetch(`${DIFY_API_URL}/datasets/${DIFY_DATASET_ID}/document/create_by_text`, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${DIFY_API_KEY}`,
     },
     body: JSON.stringify({
-      knowledge_base_id: DIFY_KB_ID,
-      content: `${question}\n${answer}`,
+      name: question.slice(0, 50), // ドキュメント名を先頭 50 文字に切り詰め
+      text: `${question}\n${answer}`,
+      indexing_technique: 'high_quality',
+      process_rule: { mode: 'automatic' },
     }),
   });
-}
-
-export default handler; 
+} 
