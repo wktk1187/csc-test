@@ -1,0 +1,19 @@
+{
+  "name": "line-notion-uploader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "upload": "ts-node scripts/upload.ts"
+  },
+  "dependencies": {
+    "@notionhq/client": "^2.2.2",
+    "dotenv": "^16.4.5",
+    "openai": "^4.26.0"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.3",
+    "@types/node": "^20.11.19"
+  }
+} 
