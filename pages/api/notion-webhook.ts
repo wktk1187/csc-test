@@ -32,13 +32,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (!Array.isArray(events)) return res.status(400).end();
 
   // 対象とするイベントタイプ（ノイズ削減用）
-  const VALID_TYPES = ['page.properties_updated', 'page.created'];
+  const VALID_TYPES = [
+    'page.created',
+    'page.updated',
+    'page.property_value_changed', // Notion beta
+    'page.properties_updated',    // 旧表記（念のため残す）
+  ];
 
   try {
     for (const ev of events) {
       // page オブジェクト以外は無視
       if (ev.object !== 'page') continue;
-      if (!VALID_TYPES.includes(ev.type)) continue;
+      if (!VALID_TYPES.includes(ev.type)) {
+        console.log('Ignored event type:', ev.type);
+        continue;
+      }
 
       const pageId: string | undefined = ev.id || ev.page_id || ev.entity_id;
       if (!pageId) continue;
