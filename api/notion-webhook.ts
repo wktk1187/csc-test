@@ -33,10 +33,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     ? body.events
     : [body];
 
-  const VALID_TYPES = [
-    'page.property_value_changed',
-    'page.properties_updated',
-  ];
+  // 監視対象のイベントタイプを "page.properties_updated" のみに限定
+  const VALID_TYPES = ['page.properties_updated'];
 
   try {
     for (const ev of events) {
