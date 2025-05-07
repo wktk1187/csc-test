@@ -6,7 +6,7 @@ format_line_logs_fixed.py
 sender は 'user' or 'agent'
 """
 
-import pandas as pd
+import pandas as pd  # type: ignore
 from datetime import timedelta
 from pathlib import Path
 
