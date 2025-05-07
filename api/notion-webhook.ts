@@ -8,7 +8,7 @@ const notion = new Notion({ auth: process.env.NOTION_TOKEN });
 // Dify
 const DIFY_API_URL = process.env.DIFY_API_URL ?? 'https://api.dify.ai/v1';
 const DIFY_API_KEY = process.env.DIFY_API_KEY as string;
-const DIFY_DATASET_ID = process.env.DIFY_DATASET_ID as string;
+const DIFY_DATASET_ID = (process.env.DIFY_DATASET_ID || process.env.DIFY_KB_ID) as string;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'POST') return res.status(405).end();
@@ -76,7 +76,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 async function pushToDify(question: string, answer: string) {
-  if (!DIFY_API_KEY || !DIFY_DATASET_ID) return;
+  if (!DIFY_API_KEY || !DIFY_DATASET_ID) {
+    console.warn('[pushToDify] DIFY_API_KEY または DIFY_DATASET_ID/K_B_ID が未設定のため送信をスキップします');
+    return;
+  }
+
+  console.log('[pushToDify] Sending document to Dify KB', {
+    DIFY_API_URL,
+    DIFY_DATASET_ID,
+    name: question.slice(0, 50),
+  });
 
   await fetch(`${DIFY_API_URL}/datasets/${DIFY_DATASET_ID}/document/create_by_text`, {
     method: 'POST',
