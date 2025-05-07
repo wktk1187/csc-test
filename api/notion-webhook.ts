@@ -53,14 +53,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const page = await notion.pages.retrieve({ page_id: pageId });
       const props: any = (page as any).properties;
 
+      // デバッグ: ページID と主要プロパティ状態を出力
+      console.log('[DEBUG] Page:', pageId);
+      console.log('[DEBUG] 承認 checkbox value:', props['承認']?.checkbox);
+      console.log('[DEBUG] 質問 exists:', !!props['質問']);
+      console.log('[DEBUG] 回答 exists:', !!props['回答']);
+
       // Approval check
       const approved = props['承認']?.type === 'checkbox' && props['承認'].checkbox === true;
       if (!approved) continue;
 
+      console.log('[DEBUG] Approved page detected:', pageId);
+
       const question = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
       const answer = props['回答']?.rich_text?.[0]?.plain_text ?? '';
 
+      console.log('[DEBUG] Sending to Dify:', { question, answer });
       await pushToDify(question, answer);
+      console.log('[DEBUG] Dify push done');
     }
 
     res.json({ received: true });
