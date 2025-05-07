@@ -34,11 +34,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     : [body];
 
   const VALID_TYPES = [
-    'page.created',
-    'page.updated',
     'page.property_value_changed',
     'page.properties_updated',
-    'page.content_updated',
   ];
 
   try {
