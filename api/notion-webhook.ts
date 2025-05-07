@@ -54,7 +54,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const props: any = (page as any).properties;
 
       // Approval check
-      const approved = Object.values(props).some((prop: any) => prop.type === 'checkbox' && prop.checkbox);
+      const approved = props['承認']?.type === 'checkbox' && props['承認'].checkbox === true;
       if (!approved) continue;
 
       const question = props['質問']?.title?.[0]?.plain_text ?? 'Untitled';
